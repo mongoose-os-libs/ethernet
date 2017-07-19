@@ -10,9 +10,9 @@
 #include "eth_phy/phy_tlk110.h"
 #include "tcpip_adapter.h"
 
-#include "fw/src/mgos_net.h"
-#include "fw/src/mgos_net_hal.h"
-#include "fw/src/mgos_sys_config.h"
+#include "mgos_net.h"
+#include "mgos_net_hal.h"
+#include "mgos_sys_config.h"
 
 static void eth_config_pins(void) {
   phy_rmii_configure_data_interface_pins();
