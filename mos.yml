@@ -1,0 +1,15 @@
+author: mongoose-os
+description: Ethernet support
+type: lib
+version: 1.0
+
+config_schema:
+  - ["eth", "o", {title: "Ethernet settings"}]
+  - ["eth.enable", "b", false, {title: "Enable Ethernet interface"}]
+
+tags:
+  - c
+  - ethernet
+  - hw
+
+skeleton_version: 2017-06-16
