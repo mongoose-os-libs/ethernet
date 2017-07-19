@@ -2,8 +2,9 @@ sources:
   - src/esp32
 
 cdefs:
-  # 8720 or 8710 in RMII mode.
+  # Select the PHY model. Only one at a time, not both.
   MGOS_ETH_PHY_LAN87x0: 1
+  # MGOS_ETH_PHY_TLK110: 1
 
 config_schema:
   - ["eth.phy_addr", "i", 0, {title: "RMII PHY address"}]
