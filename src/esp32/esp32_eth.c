@@ -16,13 +16,12 @@
 
 static void eth_config_pins(void) {
   phy_rmii_configure_data_interface_pins();
-  phy_rmii_smi_configure_pins(get_cfg()->eth.mdc_gpio,
-                              get_cfg()->eth.mdio_gpio);
+  phy_rmii_smi_configure_pins(mgos_sys_config_get_eth_mdc_gpio(),
+                              mgos_sys_config_get_eth_mdio_gpio());
 }
 
 bool mgos_ethernet_init(void) {
-  struct sys_config_eth *ecfg = &get_cfg()->eth;
-  if (!ecfg->enable) return true;
+  if (!mgos_sys_config_get_eth_enable()) return true;
 
   eth_config_t config;
   const char *phy_model;
@@ -37,11 +36,12 @@ bool mgos_ethernet_init(void) {
 #endif
 
   /* Set the PHY address in the example configuration */
-  config.phy_addr = ecfg->phy_addr;
+  config.phy_addr = mgos_sys_config_get_eth_phy_addr();
   config.gpio_config = eth_config_pins;
   config.tcpip_input = tcpip_adapter_eth_input;
 
-  LOG(LL_INFO, ("Eth init: %s PHY @ %d", phy_model, ecfg->phy_addr));
+  LOG(LL_INFO,
+      ("Eth init: %s PHY @ %d", phy_model, mgos_sys_config_get_eth_phy_addr()));
   esp_err_t ret = esp_eth_init(&config);
   if (ret == ESP_OK) {
     esp_eth_enable();
