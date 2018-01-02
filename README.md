@@ -20,7 +20,7 @@ Once wired, `mos config-set eth.enable=true` to enable Ethernet (see below).
 
 ### Common settings
 
-```json
+```javascript
 "eth": {
   "enable": true       // Enable Ethernet support
 }
@@ -28,7 +28,7 @@ Once wired, `mos config-set eth.enable=true` to enable Ethernet (see below).
 
 ### ESP32 specific
 
-```json
+```javascript
 "eth": {
   "phy_addr": 0,       // RMII PHY address
   "mdc_gpio": 23,      // GPIO to use for RMII MDC signal
