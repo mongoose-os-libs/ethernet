@@ -7,6 +7,5 @@ cdefs:
   # MGOS_ETH_PHY_TLK110: 1
 
 config_schema:
-  - ["eth.phy_addr", "i", 0, {title: "RMII PHY address"}]
   - ["eth.mdc_gpio", "i", 23, {title: "GPIO to use for RMII MDC signal"}]
   - ["eth.mdio_gpio", "i", 18, {title: "GPIO to use for RMII MDIO signal"}]

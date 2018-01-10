@@ -10,6 +10,9 @@
 #include "eth_phy/phy_tlk110.h"
 #include "tcpip_adapter.h"
 
+#include "lwip/ip_addr.h"
+
+#include "mgos_eth.h"
 #include "mgos_net.h"
 #include "mgos_net_hal.h"
 #include "mgos_sys_config.h"
@@ -21,7 +24,18 @@ static void eth_config_pins(void) {
 }
 
 bool mgos_ethernet_init(void) {
-  if (!mgos_sys_config_get_eth_enable()) return true;
+  bool res = false;
+
+  if (!mgos_sys_config_get_eth_enable()) {
+    res = true;
+    goto clean;
+  }
+
+  tcpip_adapter_ip_info_t static_ip;
+  if (!mgos_eth_get_static_ip_config(&static_ip.ip, &static_ip.netmask,
+                                     &static_ip.gw)) {
+    goto clean;
+  }
 
   eth_config_t config;
   const char *phy_model;
@@ -40,17 +54,37 @@ bool mgos_ethernet_init(void) {
   config.gpio_config = eth_config_pins;
   config.tcpip_input = tcpip_adapter_eth_input;
 
-  LOG(LL_INFO,
-      ("Eth init: %s PHY @ %d", phy_model, mgos_sys_config_get_eth_phy_addr()));
   esp_err_t ret = esp_eth_init(&config);
-  if (ret == ESP_OK) {
-    esp_eth_enable();
-  } else {
+  if (ret != ESP_OK) {
     LOG(LL_ERROR, ("Ethernet init failed: %d", ret));
     return false;
   }
 
-  return true;
+  uint8_t mac[6];
+  esp_eth_get_mac(mac);
+  bool is_dhcp = ip4_addr_isany_val(static_ip.ip);
+
+  LOG(LL_INFO,
+      ("ETH: MAC %02x:%02x:%02x:%02x:%02x:%02x; PHY: %s @ %d%s", mac[0], mac[1],
+       mac[2], mac[3], mac[4], mac[5], phy_model,
+       mgos_sys_config_get_eth_phy_addr(), (is_dhcp ? "; IP: DHCP" : "")));
+  if (!is_dhcp) {
+    char ips[16], nms[16], gws[16];
+    ip4addr_ntoa_r(&static_ip.ip, ips, sizeof(ips));
+    ip4addr_ntoa_r(&static_ip.netmask, nms, sizeof(nms));
+    ip4addr_ntoa_r(&static_ip.gw, gws, sizeof(gws));
+    LOG(LL_INFO, ("ETH: IP %s/%s, GW %s", ips, nms, gws));
+    tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_ETH);
+    if (tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_ETH, &static_ip) != ESP_OK) {
+      LOG(LL_ERROR, ("ETH: Failed to set ip info"));
+      goto clean;
+    }
+  }
+
+  res = (esp_eth_enable() == ESP_OK);
+
+clean:
+  return res;
 }
 
 bool mgos_eth_dev_get_ip_info(int if_instance,
