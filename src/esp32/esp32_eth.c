@@ -12,6 +12,8 @@
 
 #include "lwip/ip_addr.h"
 
+#include "common/cs_dbg.h"
+
 #include "mgos_eth.h"
 #include "mgos_net.h"
 #include "mgos_net_hal.h"

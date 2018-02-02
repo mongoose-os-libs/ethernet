@@ -10,6 +10,8 @@
 
 #include "lwip/ip_addr.h"
 
+#include "common/cs_dbg.h"
+
 #include "mgos_sys_config.h"
 
 const char *mgos_eth_speed_str(enum mgos_eth_speed speed) {
