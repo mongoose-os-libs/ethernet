@@ -53,6 +53,7 @@ bool mgos_ethernet_init(void) {
 
   /* Set the PHY address in the example configuration */
   config.phy_addr = mgos_sys_config_get_eth_phy_addr();
+  config.clock_mode = mgos_sys_config_get_eth_clk_mode();
   config.gpio_config = eth_config_pins;
   config.tcpip_input = tcpip_adapter_eth_input;
 
