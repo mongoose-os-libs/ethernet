@@ -440,6 +440,10 @@ static void stm32_eth_netif_task(void const *argument) {
   }
 }
 
+void stm32_eth_int_handler(void) {
+  if (s_state != NULL) HAL_ETH_IRQHandler(&s_state->heth);
+}
+
 /**
   * @brief Should be called at the beginning of the program to set up the
   * network interface. It calls the function low_level_init() to do the
@@ -520,6 +524,7 @@ err_t stm32_eth_netif_init(struct netif *netif) {
   osThreadDef(EthIf, stm32_eth_netif_task, osPriorityRealtime, 0,
               INTERFACE_THREAD_STACK_SIZE);
   osThreadCreate(osThread(EthIf), netif);
+  stm32_set_int_handler(ETH_IRQn, stm32_eth_int_handler);
 
   /* Enable MAC and DMA transmission and reception */
   if (HAL_ETH_Start(heth) != HAL_OK) {
@@ -527,8 +532,4 @@ err_t stm32_eth_netif_init(struct netif *netif) {
   }
 
   return ERR_OK;
-}
-
-void ETH_IRQHandler(void) {
-  if (s_state != NULL) HAL_ETH_IRQHandler(&s_state->heth);
 }
