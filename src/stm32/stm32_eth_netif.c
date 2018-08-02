@@ -83,9 +83,11 @@
 #include "netif/etharp.h"
 
 #include "mgos_eth.h"
+#include "mgos_gpio.h"
 #include "mgos_net_hal.h"
 
 #include "stm32_eth_phy.h"
+#include "stm32_system.h"
 
 /* The time to block waiting for input. */
 #define TIME_WAITING_FOR_INPUT (100)
@@ -95,6 +97,9 @@
 /* Define those to better describe your network interface. */
 #define IFNAME0 's'
 #define IFNAME1 't'
+
+//#undef LL_VERBOSE_DEBUG
+//#define LL_VERBOSE_DEBUG LL_DEBUG
 
 /*
  * Note: DMA desxriptors must be in non-cacheable RAM.
@@ -122,14 +127,25 @@ struct stm32_eth_netif_state *s_state = NULL;
 static void stm32_eth_netif_task(void const *arg);
 
 void HAL_ETH_MspInit(ETH_HandleTypeDef *heth) {
-  stm32_eth_phy_init(heth);
-
-  /* Enable the Ethernet global Interrupt */
-  HAL_NVIC_SetPriority(ETH_IRQn, 0x7, 0);
-  HAL_NVIC_EnableIRQ(ETH_IRQn);
-
-  /* Enable ETHERNET clock  */
   __HAL_RCC_ETH_CLK_ENABLE();
+
+#ifdef STM32_ETH_MAC_PIN_REF_CLK
+  mgos_gpio_set_mode(STM32_ETH_MAC_PIN_REF_CLK, MGOS_GPIO_MODE_OUTPUT);
+  mgos_gpio_set_mode(STM32_ETH_MAC_PIN_MDC, MGOS_GPIO_MODE_OUTPUT);
+  mgos_gpio_set_mode(STM32_ETH_MAC_PIN_MDIO, MGOS_GPIO_MODE_OUTPUT);
+  mgos_gpio_set_mode(STM32_ETH_MAC_PIN_CRS_DV, MGOS_GPIO_MODE_OUTPUT);
+  mgos_gpio_set_mode(STM32_ETH_MAC_PIN_RXD0, MGOS_GPIO_MODE_INPUT);
+  mgos_gpio_set_mode(STM32_ETH_MAC_PIN_RXD1, MGOS_GPIO_MODE_INPUT);
+  mgos_gpio_set_mode(STM32_ETH_MAC_PIN_TXD0, MGOS_GPIO_MODE_OUTPUT);
+  mgos_gpio_set_mode(STM32_ETH_MAC_PIN_TXD1, MGOS_GPIO_MODE_OUTPUT);
+  mgos_gpio_set_mode(STM32_ETH_MAC_PIN_TXD_EN, MGOS_GPIO_MODE_OUTPUT);
+#else
+#error Ethernet MAC pins are not defined. Please define STM32_ETH_MAC_PIN_xxx macros.
+#endif
+
+  heth->Init.MediaInterface = ETH_MEDIA_INTERFACE_RMII;
+
+  stm32_eth_phy_init(heth);
 }
 
 void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth) {
@@ -441,6 +457,7 @@ static void stm32_eth_netif_task(void const *argument) {
 }
 
 void stm32_eth_int_handler(void) {
+  // mgos_gpio_write(LED1, 1);
   if (s_state != NULL) HAL_ETH_IRQHandler(&s_state->heth);
 }
 
@@ -470,7 +487,7 @@ err_t stm32_eth_netif_init(struct netif *netif) {
 
 #if LWIP_NETIF_HOSTNAME
   /* Initialize interface hostname */
-  netif->hostname = "lwip";
+  netif->hostname = "mos";
 #endif /* LWIP_NETIF_HOSTNAME */
 
   netif->name[0] = IFNAME0;
@@ -524,7 +541,10 @@ err_t stm32_eth_netif_init(struct netif *netif) {
   osThreadDef(EthIf, stm32_eth_netif_task, osPriorityRealtime, 0,
               INTERFACE_THREAD_STACK_SIZE);
   osThreadCreate(osThread(EthIf), netif);
+
   stm32_set_int_handler(ETH_IRQn, stm32_eth_int_handler);
+  HAL_NVIC_SetPriority(ETH_IRQn, 9, 0);
+  HAL_NVIC_EnableIRQ(ETH_IRQn);
 
   /* Enable MAC and DMA transmission and reception */
   if (HAL_ETH_Start(heth) != HAL_OK) {

@@ -16,6 +16,17 @@ which already has one, for example,
 
 Once wired, `mos config-set eth.enable=true` to enable Ethernet (see below).
 
+## STM32
+
+ESP32 includes an Ethernet MAC and requires an external PHY, connected over RMII interface.
+Currently only LAN8742a PHY in RMII mode is supported.
+
+### MAC pin configuration
+
+Since ETH MAC functions can be assigned to different pins, you need to specify pin assignments.
+These are provided as C macros and can be specified in the `cdefs` section.
+See example definitions for NUCLEO and Discovery boards [here](mos_stm32.yml).
+
 ## Configuration
 
 ### Common settings
