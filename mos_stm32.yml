@@ -7,6 +7,9 @@ config_schema:
   - ["eth.speed", "s", "auto", {title: "Speed and duplex selection: auto, 10HD, 10FD, 100HD, 100FD."}]
   - ["eth.mtu", "i", 1460, {title: "Interface MTU"}]
 
+build_vars:
+  MGOS_ENABLE_LWIP: 1
+
 cdefs:
   STM32_ETH_PHY: STM32_ETH_PHY_LAN8742A
 
