@@ -150,6 +150,7 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef *heth) {
 
 void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth) {
   if (s_state != NULL) osSemaphoreRelease(s_state->sem_id);
+  (void) heth;
 }
 
 /**
@@ -480,7 +481,7 @@ err_t stm32_eth_netif_init(struct netif *netif) {
   const struct mgos_eth_opts *opts = (struct mgos_eth_opts *) netif->state;
   netif->state = NULL;
 
-  if (opts->mtu > ETH_RX_BUF_SIZE) {
+  if (opts->mtu > (int) ETH_RX_BUF_SIZE) {
     LOG(LL_ERROR, ("Invalid MTU, max %d", (int) ETH_RX_BUF_SIZE));
     return ERR_MEM;
   }

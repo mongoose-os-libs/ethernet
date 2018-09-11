@@ -47,6 +47,7 @@ const char *stm32_eth_phy_name(void) {
 }
 
 bool stm32_eth_phy_init(ETH_HandleTypeDef *heth) {
+  (void) heth;
   return true;
 }
 

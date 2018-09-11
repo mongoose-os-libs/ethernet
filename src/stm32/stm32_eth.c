@@ -38,7 +38,7 @@ static struct netif *s_eth_netif = NULL;
 
 bool mgos_eth_dev_get_ip_info(int if_instance,
                               struct mgos_net_ip_info *ip_info) {
-  if (s_eth_netif == NULL) return false;
+  if (s_eth_netif == NULL || if_instance != 0) return false;
   ip_info->ip.sin_addr.s_addr = ip_addr_get_ip4_u32(&s_eth_netif->ip_addr);
   ip_info->netmask.sin_addr.s_addr = ip_addr_get_ip4_u32(&s_eth_netif->netmask);
   ip_info->gw.sin_addr.s_addr = ip_addr_get_ip4_u32(&s_eth_netif->gw);
