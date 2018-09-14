@@ -232,7 +232,8 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p) {
   }
 
   /* Clean and Invalidate data cache */
-  SCB_CleanInvalidateDCache();
+  if (SCB->CCR & SCB_CCR_DC_Msk) SCB_CleanInvalidateDCache();
+
   /* Prepare transmit descriptors to give to DMA */
   HAL_ETH_TransmitFrame(heth, framelength);
 
@@ -288,7 +289,7 @@ static struct pbuf *low_level_input(struct netif *netif) {
   }
 
   /* Clean and Invalidate data cache */
-  SCB_CleanInvalidateDCache();
+  if (SCB->CCR & SCB_CCR_DC_Msk) SCB_CleanInvalidateDCache();
 
   if (p != NULL) {
     dmarxdesc = heth->RxFrameInfos.FSRxDesc;
