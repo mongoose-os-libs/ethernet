@@ -18,8 +18,17 @@
 #include <stdbool.h>
 
 #include "esp_eth.h"
+#if defined(MGOS_ETH_PHY_LAN87x0)
 #include "eth_phy/phy_lan8720.h"
+#define DEFAULT_ETHERNET_PHY_CONFIG phy_lan8720_default_ethernet_config
+#define PHY_MODEL "LAN87x0"
+#elif defined(MGOS_ETH_PHY_TLK110)
 #include "eth_phy/phy_tlk110.h"
+#define DEFAULT_ETHERNET_PHY_CONFIG phy_tlk110_default_ethernet_config
+#define PHY_MODEL "TLK110"
+#else
+#error Unknown/unspecified PHY model
+#endif
 #include "tcpip_adapter.h"
 
 #include "lwip/ip_addr.h"
@@ -30,6 +39,35 @@
 #include "mgos_net.h"
 #include "mgos_net_hal.h"
 #include "mgos_sys_config.h"
+#include "mgos_system.h"
+#include "mgos_gpio.h"
+
+static void phy_device_power_enable_via_gpio(bool enable)
+{
+    assert(DEFAULT_ETHERNET_PHY_CONFIG.phy_power_enable);
+
+    if (!enable) {
+        /* Do the PHY-specific power_enable(false) function before powering down */
+        DEFAULT_ETHERNET_PHY_CONFIG.phy_power_enable(false);
+    }
+
+    mgos_gpio_set_mode(mgos_sys_config_get_eth_phy_pwr_gpio(), MGOS_GPIO_MODE_OUTPUT);
+    if(enable == true) {
+        mgos_gpio_write(mgos_sys_config_get_eth_phy_pwr_gpio(), true);
+        LOG(LL_ERROR, ("power_enable(TRUE)"));
+    } else {
+        mgos_gpio_write(mgos_sys_config_get_eth_phy_pwr_gpio(), false);
+        LOG(LL_ERROR, ("power_enable(FALSE)"));
+    }
+
+    // Allow the power up/down to take effect, min 300us
+    mgos_msleep(1);
+
+    if (enable) {
+        /* Run the PHY-specific power on operations now the PHY has power */
+        DEFAULT_ETHERNET_PHY_CONFIG.phy_power_enable(true);
+    }
+}
 
 static void eth_config_pins(void) {
   phy_rmii_configure_data_interface_pins();
@@ -51,23 +89,18 @@ bool mgos_ethernet_init(void) {
     goto clean;
   }
 
-  eth_config_t config;
-  const char *phy_model;
-#if defined(MGOS_ETH_PHY_LAN87x0)
-  phy_model = "LAN87x0";
-  config = phy_lan8720_default_ethernet_config;
-#elif defined(MGOS_ETH_PHY_TLK110)
-  phy_model = "TLK110";
-  config = phy_tlk110_default_ethernet_config;
-#else
-#error Unknown/unspecified PHY model
-#endif
+  eth_config_t config = DEFAULT_ETHERNET_PHY_CONFIG;
+  const char *phy_model = PHY_MODEL;
 
   /* Set the PHY address in the example configuration */
   config.phy_addr = mgos_sys_config_get_eth_phy_addr();
   config.clock_mode = mgos_sys_config_get_eth_clk_mode();
   config.gpio_config = eth_config_pins;
   config.tcpip_input = tcpip_adapter_eth_input;
+
+  if(mgos_sys_config_get_eth_enable_phy_pwr() && mgos_sys_config_get_eth_phy_pwr_gpio() != -1){
+    config.phy_power_enable = phy_device_power_enable_via_gpio;
+  }
 
   esp_err_t ret = esp_eth_init(&config);
   if (ret != ESP_OK) {
