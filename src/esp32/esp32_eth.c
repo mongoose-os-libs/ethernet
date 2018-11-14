@@ -98,7 +98,7 @@ bool mgos_ethernet_init(void) {
   config.gpio_config = eth_config_pins;
   config.tcpip_input = tcpip_adapter_eth_input;
 
-  if(mgos_sys_config_get_eth_enable_phy_pwr() && mgos_sys_config_get_eth_phy_pwr_gpio() != -1){
+  if(mgos_sys_config_get_eth_phy_pwr_gpio() != -1){
     config.phy_power_enable = phy_device_power_enable_via_gpio;
   }
 

@@ -10,7 +10,6 @@ config_schema:
   - ["eth.clk_mode", "i", 0, {title: "50 MHz clock source: 0 in <- GPIO0, 1 out -> GPIO0, 2 out -> GPIO16, 3 out -> GPIO17 (inverted)"}]
   - ["eth.mdc_gpio", "i", 23, {title: "GPIO to use for RMII MDC signal"}]
   - ["eth.mdio_gpio", "i", 18, {title: "GPIO to use for RMII MDIO signal"}]
-  - ["eth.enable_phy_pwr", "b", false, {title: "Enable PHY PWR control signal"}]
   - ["eth.phy_pwr_gpio", "i", -1, {title: "GPIO to use for PHY PWR control signal"}]
 
 build_vars:
