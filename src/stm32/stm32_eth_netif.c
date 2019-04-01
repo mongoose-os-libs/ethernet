@@ -441,7 +441,7 @@ static void stm32_eth_netif_task(void const *argument) {
       (struct stm32_eth_netif_state *) netif->state;
 
   for (;;) {
-    if (osSemaphoreWait(state->sem_id, TIME_WAITING_FOR_INPUT) == osOK) {
+    if (osSemaphoreAcquire(state->sem_id, TIME_WAITING_FOR_INPUT) == osOK) {
       do {
         p = low_level_input(netif);
         if (p != NULL) {
@@ -540,9 +540,12 @@ err_t stm32_eth_netif_init(struct netif *netif) {
   netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
 
   /* create the task that handles the ETH_MAC */
-  osThreadDef(EthIf, stm32_eth_netif_task, osPriorityRealtime, 0,
-              INTERFACE_THREAD_STACK_SIZE);
-  osThreadCreate(osThread(EthIf), netif);
+  const osThreadAttr_t attr = {
+      .name = "EthIf",
+      .priority = osPriorityRealtime,
+      .stack_size = INTERFACE_THREAD_STACK_SIZE,
+  };
+  osThreadNew((osThreadFunc_t) stm32_eth_netif_task, netif, &attr);
 
   stm32_set_int_handler(ETH_IRQn, stm32_eth_int_handler);
   HAL_NVIC_SetPriority(ETH_IRQn, 9, 0);
