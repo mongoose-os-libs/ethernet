@@ -89,6 +89,8 @@
 #include "stm32_eth_phy.h"
 #include "stm32_system.h"
 
+#include "cmsis_os.h"
+
 /* The time to block waiting for input. */
 #define TIME_WAITING_FOR_INPUT (100)
 /* Stack size of the interface thread */

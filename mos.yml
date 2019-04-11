@@ -5,6 +5,10 @@ version: 1.0
 
 platforms: [ esp32, stm32 ]
 
+libs:
+  - origin: https://github.com/mongoose-os-libs/core
+  - origin: https://github.com/mongoose-os-libs/lwip
+
 sources:
   - src
 
@@ -22,7 +26,3 @@ tags:
   - docs:net:Ethernet
 
 manifest_version: 2017-09-29
-
-# Temporary, while root manifest change propagates (2018/03/29).
-libs:
-  - origin: https://github.com/mongoose-os-libs/core
