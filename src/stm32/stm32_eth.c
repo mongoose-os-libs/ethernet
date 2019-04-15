@@ -19,6 +19,7 @@
 
 #include "common/cs_dbg.h"
 
+#include "mgos_lwip.h"
 #include "mgos_net.h"
 #include "mgos_net_hal.h"
 #include "mgos_sys_config.h"
@@ -38,11 +39,8 @@ static struct netif *s_eth_netif = NULL;
 
 bool mgos_eth_dev_get_ip_info(int if_instance,
                               struct mgos_net_ip_info *ip_info) {
-  if (s_eth_netif == NULL || if_instance != 0) return false;
-  ip_info->ip.sin_addr.s_addr = ip_addr_get_ip4_u32(&s_eth_netif->ip_addr);
-  ip_info->netmask.sin_addr.s_addr = ip_addr_get_ip4_u32(&s_eth_netif->netmask);
-  ip_info->gw.sin_addr.s_addr = ip_addr_get_ip4_u32(&s_eth_netif->gw);
-  return true;
+  if (if_instance != 0) return false;
+  return mgos_lwip_if_get_ip_info(s_eth_netif, ip_info);
 }
 
 bool mgos_ethernet_init(void) {
@@ -94,23 +92,6 @@ bool mgos_ethernet_init(void) {
   ip4_addr_t ip, netmask, gw;
   if (!mgos_eth_get_static_ip_config(&ip, &netmask, &gw)) {
     goto clean;
-  }
-
-  if (mgos_sys_config_get_eth_ip() != NULL) {
-    if (!ip4addr_aton(mgos_sys_config_get_eth_ip(), &ip)) {
-      LOG(LL_ERROR, ("Invalid eth.ip!"));
-      goto clean;
-    }
-    if (mgos_sys_config_get_eth_netmask() == NULL ||
-        !ip4addr_aton(mgos_sys_config_get_eth_netmask(), &netmask)) {
-      LOG(LL_ERROR, ("Invalid eth.netmask!"));
-      goto clean;
-    }
-    if (mgos_sys_config_get_eth_gw() != NULL &&
-        !ip4addr_aton(mgos_sys_config_get_eth_gw(), &gw)) {
-      LOG(LL_ERROR, ("Invalid eth.gw!"));
-      goto clean;
-    }
   }
 
   struct netif *netif = (struct netif *) calloc(1, sizeof(*netif));
