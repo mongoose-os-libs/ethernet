@@ -18,18 +18,9 @@
 #include <stdbool.h>
 
 #include "esp_eth.h"
-#if defined(MGOS_ETH_PHY_LAN87x0)
-#include "eth_phy/phy_lan8720.h"
-#define DEFAULT_ETHERNET_PHY_CONFIG phy_lan8720_default_ethernet_config
-#define PHY_MODEL "LAN87x0"
-#elif defined(MGOS_ETH_PHY_TLK110)
-#include "eth_phy/phy_tlk110.h"
-#define DEFAULT_ETHERNET_PHY_CONFIG phy_tlk110_default_ethernet_config
-#define PHY_MODEL "TLK110"
-#else
-#error Unknown/unspecified PHY model
-#endif
-#include "tcpip_adapter.h"
+#include "esp_eth_phy.h"
+#include "esp_event.h"
+#include "esp_netif.h"
 
 #include "lwip/ip_addr.h"
 
@@ -42,29 +33,55 @@
 #include "mgos_sys_config.h"
 #include "mgos_system.h"
 
-static void phy_device_power_enable_via_gpio(bool enable) {
-  if (!enable) {
-    /* Do the PHY-specific power_enable(false) function before powering down */
-    DEFAULT_ETHERNET_PHY_CONFIG.phy_power_enable(false);
+#if MGOS_ETH_PHY_IP101
+#define PHY_MODEL "IP101"
+#define PHY_CREATE_FUNC esp_eth_phy_new_ip101
+#elif MGOS_ETH_PHY_RTL8201
+#define PHY_MODEL "RTL8201"
+#define PHY_CREATE_FUNC esp_eth_phy_new_ip101
+#elif MGOS_ETH_PHY_LAN87x0
+#define PHY_MODEL "LAN87x0"
+#define PHY_CREATE_FUNC esp_eth_phy_new_lan8720
+#elif MGOS_ETH_PHY_DP83848
+#define PHY_MODEL "DP83848"
+#define PHY_CREATE_FUNC esp_eth_phy_new_dp83848
+#else
+#error Unknown/unspecified PHY model
+#endif
+
+static void esp32_eth_event_handler(void *ctx, esp_event_base_t ev_base,
+                                    int32_t ev_id, void *ev_data) {
+  esp_netif_t *eth_if = (esp_netif_t *) ctx;
+  if (ev_base == ETH_EVENT) {
+    switch (ev_id) {
+      case ETHERNET_EVENT_START: {
+        esp_netif_action_start(eth_if, ev_base, ev_id, ev_data);
+        break;
+      }
+      case ETHERNET_EVENT_STOP: {
+        esp_netif_action_stop(eth_if, ev_base, ev_id, ev_data);
+        break;
+      }
+      case ETHERNET_EVENT_CONNECTED: {
+        esp_netif_action_connected(eth_if, ev_base, ev_id, ev_data);
+        mgos_net_dev_event_cb(MGOS_NET_IF_TYPE_ETHERNET, 0,
+                              MGOS_NET_EV_CONNECTED);
+        break;
+      }
+      case ETHERNET_EVENT_DISCONNECTED: {
+        mgos_net_dev_event_cb(MGOS_NET_IF_TYPE_ETHERNET, 0,
+                              MGOS_NET_EV_DISCONNECTED);
+        esp_netif_action_disconnected(eth_if, ev_base, ev_id, ev_data);
+        break;
+      }
+    }
+  } else {
+    mgos_net_dev_event_cb(MGOS_NET_IF_TYPE_ETHERNET, 0,
+                          MGOS_NET_EV_IP_ACQUIRED);
   }
-
-  const int pin = mgos_sys_config_get_eth_phy_pwr_gpio();
-  mgos_gpio_set_mode(pin, MGOS_GPIO_MODE_OUTPUT);
-  mgos_gpio_write(pin, enable);
-
-  /* Allow the power up/down to take effect, min 300us. */
-  mgos_msleep(1);
-
-  if (enable) {
-    /* Run the PHY-specific power on operations now the PHY has power */
-    DEFAULT_ETHERNET_PHY_CONFIG.phy_power_enable(true);
-  }
-}
-
-static void eth_config_pins(void) {
-  phy_rmii_configure_data_interface_pins();
-  phy_rmii_smi_configure_pins(mgos_sys_config_get_eth_mdc_gpio(),
-                              mgos_sys_config_get_eth_mdio_gpio());
+  (void) ctx;
+  (void) ev_base;
+  (void) ev_data;
 }
 
 bool mgos_ethernet_init(void) {
@@ -72,67 +89,95 @@ bool mgos_ethernet_init(void) {
 
   if (!mgos_sys_config_get_eth_enable()) {
     res = true;
-    goto clean;
+    goto out;
   }
 
-  tcpip_adapter_ip_info_t static_ip;
-  if (!mgos_eth_get_static_ip_config(&static_ip.ip, &static_ip.netmask,
-                                     &static_ip.gw)) {
-    goto clean;
-  }
+  /* Create MAC */
+  eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
+  mac_config.smi_mdc_gpio_num = mgos_sys_config_get_eth_mdc_gpio();
+  mac_config.smi_mdio_gpio_num = mgos_sys_config_get_eth_mdio_gpio();
+  esp_eth_mac_t *mac = esp_eth_mac_new_esp32_clock_mode(
+      &mac_config, (emac_clock_mode_t) mgos_sys_config_get_eth_clk_mode());
 
-  eth_config_t config = DEFAULT_ETHERNET_PHY_CONFIG;
+  /* Create PHY */
+  eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
   const char *phy_model = PHY_MODEL;
-
-  /* Set the PHY address in the example configuration */
-  config.phy_addr = mgos_sys_config_get_eth_phy_addr();
-  config.clock_mode = mgos_sys_config_get_eth_clk_mode();
-  config.gpio_config = eth_config_pins;
-  config.tcpip_input = tcpip_adapter_eth_input;
-
+  phy_config.phy_addr = mgos_sys_config_get_eth_phy_addr();
   if (mgos_sys_config_get_eth_phy_pwr_gpio() != -1) {
-    config.phy_power_enable = phy_device_power_enable_via_gpio;
+    phy_config.reset_gpio_num = mgos_sys_config_get_eth_phy_pwr_gpio();
   }
+  esp_eth_phy_t *phy = PHY_CREATE_FUNC(&phy_config);
 
-  esp_err_t ret = esp_eth_init(&config);
+  esp_eth_config_t eth_config = ETH_DEFAULT_CONFIG(mac, phy);
+
+  esp_eth_handle_t eth_handle = NULL;
+  esp_err_t ret = esp_eth_driver_install(&eth_config, &eth_handle);
   if (ret != ESP_OK) {
-    LOG(LL_ERROR, ("Ethernet init failed: %d", ret));
+    LOG(LL_ERROR, ("Ethernet %s failed: %d", "driver init", ret));
     return false;
   }
 
-  uint8_t mac[6];
-  esp_eth_get_mac(mac);
-  bool is_dhcp = ip4_addr_isany_val(static_ip.ip);
+  esp_netif_config_t eth_if_cfg = ESP_NETIF_DEFAULT_ETH();
+  esp_netif_t *eth_if = esp_netif_new(&eth_if_cfg);
+
+  ret = esp_netif_attach(eth_if, esp_eth_new_netif_glue(eth_handle));
+  if (ret != ESP_OK) {
+    LOG(LL_ERROR, ("Ethernet %s failed: %d", "if attach", ret));
+    return false;
+  }
+
+  esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID,
+                             esp32_eth_event_handler, eth_if);
+  esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP,
+                             esp32_eth_event_handler, eth_if);
+
+  uint8_t mac_addr[6];
+  mac->get_addr(mac, mac_addr);
+
+  esp_netif_ip_info_t static_ip = {0};
+  if (!mgos_eth_get_static_ip_config((ip4_addr_t *) &static_ip.ip,
+                                     (ip4_addr_t *) &static_ip.netmask,
+                                     (ip4_addr_t *) &static_ip.gw)) {
+    goto out;
+  }
+
+  bool is_dhcp =
+      (static_ip.ip.addr == IPADDR_ANY || static_ip.netmask.addr == IPADDR_ANY);
 
   LOG(LL_INFO,
-      ("ETH: MAC %02x:%02x:%02x:%02x:%02x:%02x; PHY: %s @ %d%s", mac[0], mac[1],
-       mac[2], mac[3], mac[4], mac[5], phy_model,
-       mgos_sys_config_get_eth_phy_addr(), (is_dhcp ? "; IP: DHCP" : "")));
+      ("ETH: MAC %02x:%02x:%02x:%02x:%02x:%02x; PHY: %s @ %d%s", mac_addr[0],
+       mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5],
+       phy_model, phy_config.phy_addr, (is_dhcp ? "; IP: DHCP" : "")));
   if (!is_dhcp) {
     char ips[16], nms[16], gws[16];
-    ip4addr_ntoa_r(&static_ip.ip, ips, sizeof(ips));
-    ip4addr_ntoa_r(&static_ip.netmask, nms, sizeof(nms));
-    ip4addr_ntoa_r(&static_ip.gw, gws, sizeof(gws));
+    ip4addr_ntoa_r((ip4_addr_t *) &static_ip.ip, ips, sizeof(ips));
+    ip4addr_ntoa_r((ip4_addr_t *) &static_ip.netmask, nms, sizeof(nms));
+    ip4addr_ntoa_r((ip4_addr_t *) &static_ip.gw, gws, sizeof(gws));
     LOG(LL_INFO, ("ETH: IP %s/%s, GW %s", ips, nms, gws));
-    tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_ETH);
-    if (tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_ETH, &static_ip) != ESP_OK) {
-      LOG(LL_ERROR, ("ETH: Failed to set ip info"));
-      goto clean;
+    esp_netif_dhcpc_stop(eth_if);
+    if ((ret = esp_netif_set_ip_info(eth_if, &static_ip)) != ESP_OK) {
+      LOG(LL_ERROR, ("ETH: Failed to set ip info: %d", ret));
+      goto out;
     }
   }
 
-  res = (esp_eth_enable() == ESP_OK);
+  ret = esp_eth_start(eth_handle);
+  if (ret != ESP_OK) {
+    LOG(LL_ERROR, ("Ethernet %s failed: %d", "start", ret));
+    return false;
+  }
 
-clean:
+  res = true;
+
+out:
   return res;
 }
 
 bool mgos_eth_dev_get_ip_info(int if_instance,
                               struct mgos_net_ip_info *ip_info) {
-  tcpip_adapter_ip_info_t info;
-  if (if_instance != 0 ||
-      tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_ETH, &info) != ESP_OK ||
-      info.ip.addr == 0) {
+  esp_netif_ip_info_t info;
+  esp_netif_t *netif = esp_netif_get_handle_from_ifkey("ETH_DEF");
+  if ((esp_netif_get_ip_info(netif, &info) != ESP_OK) || info.ip.addr == 0) {
     return false;
   }
   ip_info->ip.sin_addr.s_addr = info.ip.addr;
