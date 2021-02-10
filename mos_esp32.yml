@@ -9,6 +9,7 @@ cdefs:
   MGOS_ETH_PHY_DP83848: 0
 
 config_schema:
+  - ["eth.dhcp_hostname", "s", {title: "Host name to include in DHCP requests"}]
   - ["eth.clk_mode", "i", 0, {title: "50 MHz clock source: 0 in <- GPIO0, 1 out -> GPIO0, 2 out -> GPIO16, 3 out -> GPIO17 (inverted)"}]
   - ["eth.mdc_gpio", "i", 23, {title: "GPIO to use for RMII MDC signal"}]
   - ["eth.mdio_gpio", "i", 18, {title: "GPIO to use for RMII MDIO signal"}]

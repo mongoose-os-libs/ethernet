@@ -126,6 +126,14 @@ bool mgos_ethernet_init(void) {
     return false;
   }
 
+  if (mgos_sys_config_get_eth_dhcp_hostname() != NULL &&
+      esp_netif_set_hostname(esp_netif_get_handle_from_ifkey("ETH_DEF"),
+                             mgos_sys_config_get_eth_dhcp_hostname()) !=
+          ESP_OK) {
+    LOG(LL_ERROR, ("ETH: Failed to set host name"));
+    goto out;
+  }
+
   esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID,
                              esp32_eth_event_handler, eth_if);
   esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP,
