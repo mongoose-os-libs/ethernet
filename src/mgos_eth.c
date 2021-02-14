@@ -20,10 +20,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lwip/ip_addr.h"
-
 #include "common/cs_dbg.h"
 
+#include "mgos_net.h"
 #include "mgos_sys_config.h"
 
 const char *mgos_eth_speed_str(enum mgos_eth_speed speed) {
@@ -88,8 +87,9 @@ bool mgos_eth_phy_opts_from_str(const char *str,
   return true;
 }
 
-bool mgos_eth_get_static_ip_config(ip4_addr_t *ip, ip4_addr_t *netmask,
-                                   ip4_addr_t *gw) {
+bool mgos_eth_get_static_ip_config(struct sockaddr_in *ip,
+                                   struct sockaddr_in *netmask,
+                                   struct sockaddr_in *gw) {
   bool res = false;
   memset(ip, 0, sizeof(*ip));
   memset(netmask, 0, sizeof(*netmask));
@@ -100,17 +100,17 @@ bool mgos_eth_get_static_ip_config(ip4_addr_t *ip, ip4_addr_t *netmask,
     goto clean;
   }
 
-  if (!ip4addr_aton(mgos_sys_config_get_eth_ip(), ip)) {
+  if (!mgos_net_str_to_ip(mgos_sys_config_get_eth_ip(), ip)) {
     LOG(LL_ERROR, ("Invalid eth.ip!"));
     goto clean;
   }
   if (mgos_sys_config_get_eth_netmask() == NULL ||
-      !ip4addr_aton(mgos_sys_config_get_eth_netmask(), netmask)) {
+      !mgos_net_str_to_ip(mgos_sys_config_get_eth_netmask(), netmask)) {
     LOG(LL_ERROR, ("Invalid eth.netmask!"));
     goto clean;
   }
   if (mgos_sys_config_get_eth_gw() != NULL &&
-      !ip4addr_aton(mgos_sys_config_get_eth_gw(), gw)) {
+      !mgos_net_str_to_ip(mgos_sys_config_get_eth_gw(), gw)) {
     LOG(LL_ERROR, ("Invalid eth.gw!"));
     goto clean;
   }

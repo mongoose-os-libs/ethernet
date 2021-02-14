@@ -142,12 +142,15 @@ bool mgos_ethernet_init(void) {
   uint8_t mac_addr[6];
   mac->get_addr(mac, mac_addr);
 
-  esp_netif_ip_info_t static_ip = {0};
-  if (!mgos_eth_get_static_ip_config((ip4_addr_t *) &static_ip.ip,
-                                     (ip4_addr_t *) &static_ip.netmask,
-                                     (ip4_addr_t *) &static_ip.gw)) {
+  struct sockaddr_in ip = {0}, netmask = {0}, gw = {0};
+  if (!mgos_eth_get_static_ip_config(&ip, &netmask, &gw)) {
     goto out;
   }
+  esp_netif_ip_info_t static_ip = {
+      .ip.addr = ip.sin_addr.s_addr,
+      .netmask.addr = netmask.sin_addr.s_addr,
+      .gw.addr = gw.sin_addr.s_addr,
+  };
 
   bool is_dhcp =
       (static_ip.ip.addr == IPADDR_ANY || static_ip.netmask.addr == IPADDR_ANY);

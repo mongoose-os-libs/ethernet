@@ -3,14 +3,15 @@ description: Ethernet support
 type: lib
 version: 1.0
 
-platforms: [ esp32, stm32 ]
-
-libs:
-  - origin: https://github.com/mongoose-os-libs/core
-  - origin: https://github.com/mongoose-os-libs/lwip
+platforms: [ esp32, stm32, ubuntu ]
 
 sources:
   - src
+  - src/${mos.platform}
+
+includes:
+  - include
+  - include/${mos.platform}
 
 config_schema:
   - ["eth", "o", {title: "Ethernet settings"}]
@@ -20,9 +21,44 @@ config_schema:
   - ["eth.netmask", "s", {title: "Static Netmask"}]
   - ["eth.gw", "s", {title: "Static Default Gateway"}]
 
+conds:
+  - when: mos.platform == "esp32"
+    apply:
+      libs:
+        - location: https://github.com/mongoose-os-libs/lwip
+      config_schema:
+        - ["eth.dhcp_hostname", "s", {title: "Host name to include in DHCP requests"}]
+        - ["eth.clk_mode", "i", 0, {title: "50 MHz clock source: 0 in <- GPIO0, 1 out -> GPIO0, 2 out -> GPIO16, 3 out -> GPIO17 (inverted)"}]
+        - ["eth.mdc_gpio", "i", 23, {title: "GPIO to use for RMII MDC signal"}]
+        - ["eth.mdio_gpio", "i", 18, {title: "GPIO to use for RMII MDIO signal"}]
+        - ["eth.phy_pwr_gpio", "i", -1, {title: "GPIO to use for PHY PWR control signal"}]
+      build_vars:
+        ESP_IDF_EXTRA_COMPONENTS: >
+          ${build_vars.ESP_IDF_EXTRA_COMPONENTS}
+          esp_eth
+      cdefs:
+        # Select the PHY model. Only one at a time.
+        MGOS_ETH_PHY_IP101: 0
+        MGOS_ETH_PHY_RTL8201: 0
+        MGOS_ETH_PHY_LAN87x0: 1
+        MGOS_ETH_PHY_DP83848: 0
+
+  - when: mos.platform == "stm32"
+    apply:
+      libs:
+        - location: https://github.com/mongoose-os-libs/lwip
+      config_schema:
+        # OUI = 12:34:56 happens to be a valid Locally Administered Address prefix. Win!
+        - ["eth.mac", "s", "12:34:56:??:??:??", {title: "MAC address. ?? are replaced with bits from chip's unique ID."}]
+        - ["eth.speed", "s", "auto", {title: "Speed and duplex selection: auto, 10HD, 10FD, 100HD, 100FD."}]
+        - ["eth.mtu", "i", 1460, {title: "Interface MTU"}]
+      build_vars:
+        MGOS_ENABLE_LWIP: 1
+
 tags:
   - c
   - net
   - docs:net:Ethernet
 
-manifest_version: 2017-09-29
+no_implicit_init_deps: true
+manifest_version: 2018-06-20

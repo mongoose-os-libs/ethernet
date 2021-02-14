@@ -89,10 +89,14 @@ bool mgos_ethernet_init(void) {
   opts.phy_addr = mgos_sys_config_get_eth_phy_addr();
   opts.mtu = mgos_sys_config_get_eth_mtu();
 
-  ip4_addr_t ip, netmask, gw;
-  if (!mgos_eth_get_static_ip_config(&ip, &netmask, &gw)) {
+  struct sockaddr_in sip, snetmask, sgw;
+  if (!mgos_eth_get_static_ip_config(&sip, &snetmask, &sgw)) {
     goto clean;
   }
+
+  ip4_addr_t ip = {.addr = sip.sin_addr.s_addr};
+  ip4_addr_t netmask = {.addr = snetmask.sin_addr.s_addr};
+  ip4_addr_t gw = {.addr = sgw.sin_addr.s_addr};
 
   struct netif *netif = (struct netif *) calloc(1, sizeof(*netif));
   if (netif_add(netif, &ip, &netmask, &gw, &opts, stm32_eth_netif_init,

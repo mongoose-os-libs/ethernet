@@ -15,13 +15,12 @@
  * limitations under the License.
  */
 
-#ifndef CS_MOS_LIBS_ETHERNET_SRC_MGOS_ETH_H_
-#define CS_MOS_LIBS_ETHERNET_SRC_MGOS_ETH_H_
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "lwip/ip_addr.h"
+#include "mgos_net.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -56,10 +55,10 @@ const char *mgos_eth_speed_str(enum mgos_eth_speed speed);
 const char *mgos_eth_duplex_str(enum mgos_eth_duplex duplex);
 bool mgos_eth_phy_opts_from_str(const char *str,
                                 struct mgos_eth_phy_opts *opts);
-bool mgos_eth_get_static_ip_config(ip4_addr_t *ip, ip4_addr_t *netmask,
-                                   ip4_addr_t *gw);
+bool mgos_eth_get_static_ip_config(struct sockaddr_in *ip,
+                                   struct sockaddr_in *netmask,
+                                   struct sockaddr_in *gw);
 
 #ifdef __cplusplus
 }
 #endif
-#endif /* CS_MOS_LIBS_ETHERNET_SRC_MGOS_ETH_H_ */
