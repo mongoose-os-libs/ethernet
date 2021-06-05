@@ -38,7 +38,7 @@
 #define PHY_CREATE_FUNC esp_eth_phy_new_ip101
 #elif MGOS_ETH_PHY_RTL8201
 #define PHY_MODEL "RTL8201"
-#define PHY_CREATE_FUNC esp_eth_phy_new_ip101
+#define PHY_CREATE_FUNC esp_eth_phy_new_rtl8201
 #elif MGOS_ETH_PHY_LAN87x0
 #define PHY_MODEL "LAN87x0"
 #define PHY_CREATE_FUNC esp_eth_phy_new_lan8720
