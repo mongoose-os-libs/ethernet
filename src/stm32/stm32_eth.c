@@ -40,7 +40,8 @@ static struct netif *s_eth_netif = NULL;
 bool mgos_eth_dev_get_ip_info(int if_instance,
                               struct mgos_net_ip_info *ip_info) {
   if (if_instance != 0) return false;
-  return mgos_lwip_if_get_ip_info(s_eth_netif, ip_info);
+  return mgos_lwip_if_get_ip_info(
+      s_eth_netif, mgos_sys_config_get_eth_nameserver(), ip_info);
 }
 
 bool mgos_ethernet_init(void) {

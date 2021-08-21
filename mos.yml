@@ -20,6 +20,7 @@ config_schema:
   - ["eth.ip", "s", {title: "Static IP Address"}]
   - ["eth.netmask", "s", {title: "Static Netmask"}]
   - ["eth.gw", "s", {title: "Static Default Gateway"}]
+  - ["eth.nameserver", "s", {title: "Static DNS Server"}]
 
 conds:
   - when: mos.platform == "esp32"

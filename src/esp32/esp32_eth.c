@@ -22,12 +22,14 @@
 #include "esp_event.h"
 #include "esp_netif.h"
 
-#include "lwip/ip_addr.h"
+#include "lwip/dhcp.h"
+#include "lwip/netif.h"
 
 #include "common/cs_dbg.h"
 
 #include "mgos_eth.h"
 #include "mgos_gpio.h"
+#include "mgos_lwip.h"
 #include "mgos_net.h"
 #include "mgos_net_hal.h"
 #include "mgos_sys_config.h"
@@ -186,13 +188,9 @@ out:
 
 bool mgos_eth_dev_get_ip_info(int if_instance,
                               struct mgos_net_ip_info *ip_info) {
-  esp_netif_ip_info_t info;
-  esp_netif_t *netif = esp_netif_get_handle_from_ifkey("ETH_DEF");
-  if ((esp_netif_get_ip_info(netif, &info) != ESP_OK) || info.ip.addr == 0) {
-    return false;
-  }
-  ip_info->ip.sin_addr.s_addr = info.ip.addr;
-  ip_info->netmask.sin_addr.s_addr = info.netmask.addr;
-  ip_info->gw.sin_addr.s_addr = info.gw.addr;
-  return true;
+  esp_netif_t *esp_netif = esp_netif_get_handle_from_ifkey("ETH_DEF");
+  if (esp_netif == NULL) return false;
+  struct netif *nif = esp_netif_get_lwip_netif(esp_netif);
+  return mgos_lwip_if_get_ip_info(nif, mgos_sys_config_get_eth_nameserver(),
+                                  ip_info);
 }
