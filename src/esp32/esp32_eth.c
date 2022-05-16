@@ -34,6 +34,7 @@
 #include "mgos_net_hal.h"
 #include "mgos_sys_config.h"
 #include "mgos_system.h"
+#include "mgos_utils.h"
 
 #if MGOS_ETH_PHY_IP101
 #define PHY_MODEL "IP101"
@@ -51,21 +52,11 @@
 #error Unknown/unspecified PHY model
 #endif
 
-static void esp32_eth_event_handler(void *ctx, esp_event_base_t ev_base,
-                                    int32_t ev_id, void *ev_data) {
-  esp_netif_t *eth_if = (esp_netif_t *) ctx;
+static void esp32_eth_event_handler(void *ctx UNUSED_ARG, esp_event_base_t ev_base,
+                                    int32_t ev_id, void *ev_data UNUSED_ARG) {
   if (ev_base == ETH_EVENT) {
     switch (ev_id) {
-      case ETHERNET_EVENT_START: {
-        esp_netif_action_start(eth_if, ev_base, ev_id, ev_data);
-        break;
-      }
-      case ETHERNET_EVENT_STOP: {
-        esp_netif_action_stop(eth_if, ev_base, ev_id, ev_data);
-        break;
-      }
       case ETHERNET_EVENT_CONNECTED: {
-        esp_netif_action_connected(eth_if, ev_base, ev_id, ev_data);
         mgos_net_dev_event_cb(MGOS_NET_IF_TYPE_ETHERNET, 0,
                               MGOS_NET_EV_CONNECTED);
         break;
@@ -73,7 +64,6 @@ static void esp32_eth_event_handler(void *ctx, esp_event_base_t ev_base,
       case ETHERNET_EVENT_DISCONNECTED: {
         mgos_net_dev_event_cb(MGOS_NET_IF_TYPE_ETHERNET, 0,
                               MGOS_NET_EV_DISCONNECTED);
-        esp_netif_action_disconnected(eth_if, ev_base, ev_id, ev_data);
         break;
       }
     }
@@ -81,9 +71,6 @@ static void esp32_eth_event_handler(void *ctx, esp_event_base_t ev_base,
     mgos_net_dev_event_cb(MGOS_NET_IF_TYPE_ETHERNET, 0,
                           MGOS_NET_EV_IP_ACQUIRED);
   }
-  (void) ctx;
-  (void) ev_base;
-  (void) ev_data;
 }
 
 bool mgos_ethernet_init(void) {
@@ -98,8 +85,28 @@ bool mgos_ethernet_init(void) {
   eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
   mac_config.smi_mdc_gpio_num = mgos_sys_config_get_eth_mdc_gpio();
   mac_config.smi_mdio_gpio_num = mgos_sys_config_get_eth_mdio_gpio();
-  esp_eth_mac_t *mac = esp_eth_mac_new_esp32_clock_mode(
-      &mac_config, (emac_clock_mode_t) mgos_sys_config_get_eth_clk_mode());
+  switch (mgos_sys_config_get_eth_clk_mode()) {
+    case 0:
+      mac_config.clock_config.rmii.clock_gpio = EMAC_CLK_IN_GPIO;
+      mac_config.clock_config.rmii.clock_mode = EMAC_CLK_EXT_IN;
+      break;
+    case 1:
+      mac_config.clock_config.rmii.clock_gpio = EMAC_APPL_CLK_OUT_GPIO;
+      mac_config.clock_config.rmii.clock_mode = EMAC_CLK_OUT;
+      break;
+    case 2:
+      mac_config.clock_config.rmii.clock_gpio = EMAC_CLK_OUT_GPIO;
+      mac_config.clock_config.rmii.clock_mode = EMAC_CLK_OUT;
+      break;
+    case 3:
+      mac_config.clock_config.rmii.clock_gpio = EMAC_CLK_OUT_180_GPIO;
+      mac_config.clock_config.rmii.clock_mode = EMAC_CLK_OUT;
+      break;
+    default:
+      LOG(LL_ERROR, ("Invalid eth.clk_mode %d", mgos_sys_config_get_eth_clk_mode()));
+      return false;
+  }
+  esp_eth_mac_t *mac = esp_eth_mac_new_esp32(&mac_config);
 
   /* Create PHY */
   eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
