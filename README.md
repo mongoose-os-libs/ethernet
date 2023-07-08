@@ -6,8 +6,10 @@ ESP32 includes an Ethernet MAC and requires an external PHY, connected over RMII
 
 Two PHY models are currently supported:
 
-- Microchip LAN87x0 ([LAN8710](http://ww1.microchip.com/downloads/en/DeviceDoc/00002164B.pdf) supports both MII and RMII
-- [LAN8720](http://ww1.microchip.com/downloads/en/DeviceDoc/00002165B.pdf) is RMII only) and [TI TLK110](http://www.ti.com/lit/ds/symlink/tlk110.pdf). PHY model selection is a compile-time option and is set [here](https://github.com/mongoose-os-libs/ethernet/blob/master/mos_esp32.yml#L5).
+- Microchip LAN87x0 ([LAN8710](http://ww1.microchip.com/downloads/en/DeviceDoc/00002164B.pdf) supports both MII and RMII [LAN8720](http://ww1.microchip.com/downloads/en/DeviceDoc/00002165B.pdf) is RMII only)
+- [TI TLK110](http://www.ti.com/lit/ds/symlink/tlk110.pdf).
+
+PHY model selection is a compile-time option and is set [here](https://github.com/mongoose-os-libs/ethernet/blob/master/mos_esp32.yml#L5).
 
 There is a [detailed article](https://sautter.com/blog/ethernet-on-esp32-using-lan8720/)
 on how to connect a PHY yourself. It is much easier to buy a dev board
